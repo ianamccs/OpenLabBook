@@ -97,12 +97,18 @@ void MovementDetector::process(AudioSampleBuffer& buffer,
 	// Fill an array with 2s of data 
 	for(int i = 0; i < bufferSize; i++)
 	{
-		if((hasEntered1 == false) && (initialWindow.size() == (60000-1)))
+		if((hasEntered == false) && (initialWindow.size() == (60000-1)))
 		{
-			hasEntered1 == true;
+			hasEntered == true;
 
+			// add the last term to initialMean
+			initialWindow.add((float) buffer.getSample(0,i));
+			initialMean += initialWindow[i];
+
+			// Compute the mean of 2s of data
 			initialMean = initialMean/60000;
 
+			// Compute the the SD for 2s of data
 			for(int i = 0; i < 60000; i++)
 			{
 				standardDev += pow((initialWindow[i] - initialMean),2);
@@ -110,12 +116,8 @@ void MovementDetector::process(AudioSampleBuffer& buffer,
 			standardDev = sqrt(standardDev/60000);
 		}
 
-		else if((hasEntered2 == false) && (initialWindow.size() < 60000))
+		else if((hasEntered == false) && (initialWindow.size() < (60000-1)))
 		{
-			if (initialWindow.size() == (60000-1))
-			{
-				hasEntered2 == true;
-			}
 			initialWindow.add((float) buffer.getSample(0,i));
 			initialMean += initialWindow[i];
 		}
