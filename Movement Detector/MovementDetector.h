@@ -116,8 +116,7 @@ private:
     Array<float> initialWindow;
     float initialMean = 0;
     float standardDev = 0;
-    bool hasEntered1 = false;
-    bool hasEntered2 = false;
+    bool hasEntered = false;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MovementDetector);
 
