@@ -93,17 +93,21 @@ void MovementDetector::process(AudioSampleBuffer& buffer,
 
 	int bufferChannels = (int) buffer.getNumChannels();
 	std::cout << "\n Canais do buffer: " << bufferChannels << "\n";
-	
+
 	// Fill an array with 2s of data 
 	for(int i = 0; i < bufferSize; i++)
 	{
+		float currentSample = (float) buffer.getSample(0,i);
+
 		if((hasEntered == false) && (initialWindow.size() == (60000-1)))
 		{
 			hasEntered == true;
 
+			buffer.setSample(1,i,currentSample); //grava valor no canal 1
+
 			// add the last term to initialMean
-			initialWindow.add((float) buffer.getSample(0,i));
-			initialMean += initialWindow[i];
+			initialWindow.add(currentSample);
+			initialMean += currentSample;
 
 			// Compute the mean of 2s of data
 			initialMean = initialMean/60000;
@@ -118,11 +122,12 @@ void MovementDetector::process(AudioSampleBuffer& buffer,
 
 		else if((hasEntered == false) && (initialWindow.size() < (60000-1)))
 		{
-			initialWindow.add((float) buffer.getSample(0,i));
-			initialMean += initialWindow[i];
+			initialWindow.add(currentSample);
+			initialMean += currentSample;
+
+			buffer.setSample(1,i,currentSample); // grava valor no canal 1
 		}
 		
-
 	}
 
 	float windowMean = 0;
@@ -132,14 +137,16 @@ void MovementDetector::process(AudioSampleBuffer& buffer,
 		
 	}
 
-
-
 	windowMean = windowMean/bufferSize;
 
 	std::cout << "\n\n tamanho vetor: " << initialWindow.size() << "\n\n";
 	std::cout << "\n\n media vetor: " << initialMean << "\n\n";
 	std::cout << "\n\n std vetor: " << standardDev << "\n\n";
-	
+
+	// std::cout << "\n\n 20 valores finais: \n";
+	// for(int i = 59999-20; i < 59999; i++) {
+	// 	std::cout << "\n\n valor " << i << ": " << initialWindow[i] << "\n";
+	// }
 	
 	// // Using 10 points to estimate the mean
  //    int sizeMeanWindow = 10;
