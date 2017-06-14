@@ -29,6 +29,7 @@
 #endif
 
 #include <ProcessorHeaders.h>
+#include <fstream>
 
 /**
 
@@ -114,13 +115,27 @@ private:
 
 
     Array<float> initialWindow; //2s
+    Array<float> meanAmp;
     double initialMean = 0;
+    double sumAmp = 0;
+    double windowMean = 0;
     float standardDev = 0;
+    int bufferSize = 0;
+    int sizeMeanWindow = 10; // Using 10 points to estimate the mean
+    int arrSize = 0;
+    int overlap = 50;
+    int k = floor((100-overlap)*30000/sizeMeanWindow));
+    float sumPoints = 0;
+    float ampThreshold = 0;
+    float timeThreshold = 1800000;
+
+    std::ofstream fout;
 
     bool hasEntered = false;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MovementDetector);
 
+    void calculateBufferSize(AudioSampleBuffer& buffer);
 };
 
 #endif  // MovementDetector_H_INCLUDED
