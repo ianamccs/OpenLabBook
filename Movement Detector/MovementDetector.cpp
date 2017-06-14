@@ -1,25 +1,18 @@
-
 /*
     ------------------------------------------------------------------
-
     This file is part of the Open Ephys GUI
     Copyright (C) 2014 Open Ephys
-
     ------------------------------------------------------------------
-
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
-
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
-
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
 */
 
 
@@ -36,6 +29,7 @@ MovementDetector::MovementDetector()
     : GenericProcessor("Movement Detector") //, threshold(200.0), state(true)
 
 {
+	fout.open("teste.txt");
 	//Without a custom editor, generic parameter controls can be added
     //parameters.add(Parameter("thresh", 0.0, 500.0, 200.0, 0));
 
@@ -83,31 +77,46 @@ void MovementDetector::setParameter(int parameterIndex, float newValue)
 // 	return mean/size;
 // }
 
+void MovementDetector::calculateBufferSize(AudioSampleBuffer& buffer) 
+{
+	int numSamples = (int) buffer.getNumSamples();
+	float currentSample;
+
+	for(int i = 0; i < numSamples; i++)
+	{
+		currentSample = (float) buffer.getSample(0,i);
+
+		if(currentSample > 0) {
+			bufferSize = i + 1;
+		}
+	} 
+
+	std::cout << "\n Tamanho do buffer: " << bufferSize << "\n";
+}
 
 void MovementDetector::process(AudioSampleBuffer& buffer,
                                MidiBuffer& events)
 {
+	if(bufferSize == 0) 
+	{
+		calculateBufferSize(buffer);
+	}
 
-	int bufferSize = (int) buffer.getNumSamples();
-	std::cout << "\n Tamanho do buffer: " << bufferSize << "\n";
-
-	int bufferChannels = (int) buffer.getNumChannels();
-	std::cout << "\n Canais do buffer: " << bufferChannels << "\n";
-
-	// Fill an array with 2s of data 
+	 
 	for(int i = 0; i < bufferSize; i++)
 	{
 		float currentSample = (float) buffer.getSample(0,i);
 
+		// Fill an array with initial 2s of data
 		if((hasEntered == false) && (initialWindow.size() == (60000-1)))
 		{
 			hasEntered == true;
 
-			buffer.setSample(1,i,currentSample); //grava valor no canal 1
-
 			// add the last term to initialMean
 			initialWindow.add(currentSample);
 			initialMean += currentSample;
+			fout << currentSample;
+			fout.close();	
 
 			// Compute the mean of 2s of data
 			initialMean = initialMean/60000;
@@ -118,54 +127,81 @@ void MovementDetector::process(AudioSampleBuffer& buffer,
 				standardDev += pow((initialWindow[i] - initialMean),2);
 			}
 			standardDev = sqrt(standardDev/60000);
+
+			std::cout << "\n\n tamanho vetor: " << initialWindow.size() << "\n\n";
+			std::cout << "\n\n media vetor: " << initialMean << "\n\n";
+			std::cout << "\n\n std vetor: " << standardDev << "\n\n";
 		}
 
 		else if((hasEntered == false) && (initialWindow.size() < (60000-1)))
 		{
 			initialWindow.add(currentSample);
 			initialMean += currentSample;
-
-			buffer.setSample(1,i,currentSample); // grava valor no canal 1
+			fout << currentSample << std::endl;
 		}
+
+		
+	   
+	    arrSize = floor(bufferSize/sizeMeanWindow);
+	    
+	    timeThreshold = timeThreshold/sizeMeanWindow;	    
+	    
+
+	    // create arrSize blocks with sizeMeanWindow points
+	    for (int i = 0; i < arrSize; i++)
+	    {           
+	        for (int j = 0; j < sizeMeanWindow; j++)
+	        {
+	            sumPoints += pow(buffer.getSample(0,(i*sizeMeanWindow)+j),2);
+	        }
+
+	        if(meanAmp.size() > timeThreshold-1)
+	        {
+
+	        	/* inserir aqui lógica que trabalha a janela de tempo e faz a classificação */
+
+
+	        	// substitui os 10s iniciais do vetor por novos 10s
+	        	if(k >= floor((60-overlap)*30000/sizeMeanWindow)) // if k >= 10s
+	        	{
+	        		for(int l = 0; l < meanAmp.size();l++)
+	        		{
+	        			sumAmp += meanAmp[l];
+	        		}
+
+	        		windowMean = sumAmp/meanAmp.size(); // assumindo que a média das amplitudes
+	        											// na janela de tempo será o critério de
+	        											// classificação
+	        		
+	        		k = 0;
+	        	}
+
+	        	meanAmp.insert(k, sumPoints/sizeMeanWindow);
+	        	k++;
+
+	        }
+
+	        else 
+	        {
+	        	meanAmp.add(sumPoints/sizeMeanWindow);
+	        }
+	    }	    
 		
 	}
 
-	float windowMean = 0;
-	for(int i = 0; i < bufferSize; i++)
-	{
-		windowMean += pow(buffer.getSample(0,i),2);
+
+
+	// float windowMean = 0;
+	// for(int i = 0; i < bufferSize; i++)
+	// {
+	// 	windowMean += pow(buffer.getSample(0,i),2);
 		
-	}
-
-	windowMean = windowMean/bufferSize;
-
-	std::cout << "\n\n tamanho vetor: " << initialWindow.size() << "\n\n";
-	std::cout << "\n\n media vetor: " << initialMean << "\n\n";
-	std::cout << "\n\n std vetor: " << standardDev << "\n\n";
-
-	// std::cout << "\n\n 20 valores finais: \n";
-	// for(int i = 59999-20; i < 59999; i++) {
-	// 	std::cout << "\n\n valor " << i << ": " << initialWindow[i] << "\n";
 	// }
+
+	// windowMean = windowMean/bufferSize;
+
+
 	
-	// // Using 10 points to estimate the mean
- //    int sizeMeanWindow = 10;
 
- //    double arrSized = round(getNumSamples(module.inputChan)/sizeMeanWindow);
- //    int arrSize = (int) arrSized;
- //    float meanBlocks[arrSize];
- //    float sumPoints = 0;
-
- //    // create arrSize blocks with sizeMeanWindow points
- //    for (int i = 0; i < arrSize; i++)
- //    {           
- //        for (int j = 0; j < sizeMeanWindow; j++)
- //        {
- //            sumPoints += pow(buffer.getSample(module.inputChan,(i*sizeMeanWindow)+j),2);
- //        }
-
- //        meanBlocks[i] = (sumPoints/sizeMeanWindow);
- //    }
-    
 
 }
