@@ -124,7 +124,7 @@ private:
     int sizeMeanWindow = 10; // Using 10 points to estimate the mean
     int arrSize = 0;
     int overlap = 50;
-    int k = floor((100-overlap)*30000/sizeMeanWindow));
+    int k = floor((60-overlap)*30000/sizeMeanWindow);
     float sumPoints = 0;
     float ampThreshold = 0;
     float timeThreshold = 1800000;
@@ -132,7 +132,7 @@ private:
     std::ofstream fout;
 
     bool hasEntered = false;
-
+    
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MovementDetector);
 
     void calculateBufferSize(AudioSampleBuffer& buffer);
