@@ -66,17 +66,6 @@ void MovementDetector::setParameter(int parameterIndex, float newValue)
     editor->updateParameterButtons(parameterIndex);
 }
 
-// float MovementDetector::getSquareAverage(float array, int size)
-// {
-// 	float mean = 0;
-// 	for(int i = 0; i < size; i++)
-// 	{
-// 		mean += mean + pow(array[i],2);
-// 	}
-
-// 	return mean/size;
-// }
-
 void MovementDetector::calculateBufferSize(AudioSampleBuffer& buffer) 
 {
 	int numSamples = (int) buffer.getNumSamples();
@@ -95,6 +84,98 @@ void MovementDetector::calculateBufferSize(AudioSampleBuffer& buffer)
 	std::cout << "\n Tamanho do buffer: " << bufferSize << "\n";
 }
 
+void MovementDetector::calculateInitialStats(AudioSampleBuffer& buffer)
+{
+	for(int i = 0; i < bufferSize; i++)
+	{
+		float currentSample = (float) buffer.getSample(0,i);
+
+		// Fill an array with initial 2s of data
+		if((initialWindow.size() == (60000-1)) && (hasEntered == false))
+		{
+			hasEntered = true;
+
+			// add the last term to initialMean
+			initialWindow.add(currentSample);
+			initialMean += pow(currentSample,2);
+			//fout << currentSample;
+			//fout.close();	
+
+			// Compute the mean of 2s of data
+			initialMean = sqrt(initialMean/60000);
+
+			// Compute the the SD for 2s of data
+			for(int j = 0; j < 60000; j++)
+			{
+				standardDev += pow((initialWindow[j] - initialMean),2);
+			}
+			standardDev = sqrt(standardDev/60000);
+
+			std::cout<<"\n Desvio padrao: "<<standardDev<<"\n";
+		}
+
+		else if((hasEntered == false) && (initialWindow.size() < (60000-1)))
+		{
+			initialWindow.add(currentSample);
+			initialMean += pow(currentSample,2);
+			//fout << currentSample << std::endl;
+		}
+	}
+}
+
+void MovementDetector::classifier(AudioSampleBuffer& buffer)
+{
+	for(int i = 0; i < bufferSize; i++)
+		{	
+			float currentSample = (float) buffer.getSample(0,i);
+
+			if(meanAmp.size() >= timeThreshold)
+	        {
+
+	        	/* inserir aqui lógica que trabalha a janela de tempo e faz a classificação */
+
+	 	       	// substitui os 10s iniciais do vetor por novos 10s
+	        	if(k == ((60-overlap)*30000)-1)
+	        	{
+	        		for(int l = 0; l < meanAmp.size();l++)
+	        		{
+	        			sumAmp += meanAmp[l];
+	        		}
+
+	        		windowMean = sqrt(sumAmp/meanAmp.size()); // assumindo que a média das amplitudes
+	        											// na janela de tempo será o critério de
+	        											// classificação
+	        		sumAmp = 0;
+	        		
+	        		std::cout << "initialMean: " << (initialMean) << "\n";
+	        		std::cout << "windowMean: " << (windowMean) << "\n";
+	        		
+	        		
+	        		if(windowMean <= (initialMean))
+	        		{
+	        			std::cout << "dormindo \n\n";
+	        		}
+	        		else
+	        		{
+	        			std::cout << "acordado \n\n";
+	        		}
+
+	        		k = 0;
+	        	}
+	        	if(k < (60-overlap)*30000)
+	        	{
+		        	meanAmp.set(k,pow(currentSample,2));
+		        	k++;
+	        	}
+	        }
+
+	        else 
+	        {
+	        	meanAmp.add(pow(currentSample,2));
+	        } 
+		}	
+}
+
 void MovementDetector::process(AudioSampleBuffer& buffer,
                                MidiBuffer& events)
 {
@@ -102,106 +183,14 @@ void MovementDetector::process(AudioSampleBuffer& buffer,
 	{
 		calculateBufferSize(buffer);
 	}
-	 
-	for(int i = 0; i < bufferSize; i++)
+
+	if(hasEntered == false)
 	{
-		float currentSample = (float) buffer.getSample(0,i);
+		calculateInitialStats(buffer);
+	}
 
-		// Fill an array with initial 2s of data
-		if((hasEntered == false) && (initialWindow.size() == (60000-1)))
-		{
-			hasEntered == true;
-
-			// add the last term to initialMean
-			initialWindow.add(currentSample);
-			initialMean += currentSample;
-			fout << currentSample;
-			fout.close();	
-
-			// Compute the mean of 2s of data
-			initialMean = initialMean/60000;
-
-			// Compute the the SD for 2s of data
-			for(int i = 0; i < 60000; i++)
-			{
-				standardDev += pow((initialWindow[i] - initialMean),2);
-			}
-			standardDev = sqrt(standardDev/60000);
-		}
-
-		else if((hasEntered == false) && (initialWindow.size() < (60000-1)))
-		{
-			initialWindow.add(currentSample);
-			initialMean += currentSample;
-			fout << currentSample << std::endl;
-		}
-
-		
-		
-		std::cout << "bufferSize: "<< bufferSize;
-		std::cout << "\n\n tamanho vetor: " << initialWindow.size() << "\n\n";
-		std::cout << "\n\n media vetor: " << initialMean << "\n\n";
-		std::cout << "\n\n std vetor: " << standardDev << "\n\n";
-	   
-	    arrSize = floor(bufferSize/sizeMeanWindow);
-	    
-	    timeThreshold = timeThreshold/sizeMeanWindow;	    
-	    
-
-	    // // create arrSize blocks with sizeMeanWindow points
-	    // for (int i = 0; i < arrSize; i++)
-	    // {           
-	    //     for (int j = 0; j < sizeMeanWindow; j++)
-	    //     {
-	    //         sumPoints += sqrt(pow(buffer.getSample(0,(i*sizeMeanWindow)+j),2));
-	    //     }
-
-	    //     if(meanAmp.size() > timeThreshold-1)
-	    //     {
-
-	    //     	/* inserir aqui lógica que trabalha a janela de tempo e faz a classificação */
-
-
-	    //     	// substitui os 10s iniciais do vetor por novos 10s
-	    //     	if(k >= floor((60-overlap)*30000/sizeMeanWindow)) // if k >= 10s
-	    //     	{
-	    //     		for(int l = 0; l < meanAmp.size();l++)
-	    //     		{
-	    //     			sumAmp += meanAmp[l];
-	    //     		}
-
-	    //     		windowMean = sumAmp/meanAmp.size(); // assumindo que a média das amplitudes
-	    //     											// na janela de tempo será o critério de
-	    //     											// classificação
-	        		
-	    //     		std::cout << "initialMean: " << (initialMean + 0.2*standardDev) << "\n";
-	    //     		std::cout << "windowMean: " << (windowMean) << "\n";
-	        		
-	    //     		if(standardDev != 0)
-	    //     		{
-		   //      		if(windowMean <= (initialMean + 0.2*standardDev))
-		   //      		{
-		   //      			std::cout << "dormindo \n\n";
-		   //      		}
-		   //      		else if(windowMean > (initialMean + 0.2*standardDev))
-		   //      		{
-		   //      			std::cout << "acordado \n\n";
-		   //      		}
-	    //     		}
-	
-	    //     		k = 0;
-	    //     	}
-
-	    //     	meanAmp.insert(k, sumPoints/sizeMeanWindow);
-	    //     	k++;
-
-	    //     }
-
-	    //     else 
-	    //     {
-	    //     	meanAmp.add(sumPoints/sizeMeanWindow);
-	    //     }
-	    // }	    
-		
+	else
+	{
+		classifier(buffer);
 	}
 }

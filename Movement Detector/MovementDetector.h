@@ -124,10 +124,10 @@ private:
     int sizeMeanWindow = 10; // Using 10 points to estimate the mean
     int arrSize = 0;
     int overlap = 50;
-    int k = floor((60-overlap)*30000/sizeMeanWindow);
+    int k = 0;
     float sumPoints = 0;
     float ampThreshold = 0;
-    float timeThreshold = 1800000;
+    float timeThreshold = 1800000; //1 minuto
 
     std::ofstream fout;
 
@@ -136,6 +136,8 @@ private:
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MovementDetector);
 
     void calculateBufferSize(AudioSampleBuffer& buffer);
+    void calculateInitialStats(AudioSampleBuffer& buffer);
+    void classifier(AudioSampleBuffer& buffer);
 };
 
 #endif  // MovementDetector_H_INCLUDED
