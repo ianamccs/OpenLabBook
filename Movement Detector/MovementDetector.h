@@ -115,29 +115,26 @@ private:
 
 
     Array<float> initialWindow; //2s
-    Array<float> meanAmp;
-    double initialMean = 0;
-    double sumAmp = 0;
-    double windowMean = 0;
+    Array<float> ampWindow;
+    float initialMean = 0;
     float standardDev = 0;
     int bufferSize = 0;
-    int sizeMeanWindow = 10; // Using 10 points to estimate the mean
-    int arrSize = 0;
+    int timeThreshold = 180000; //6s //1 minuto
     int overlap = 50;
     int k = 0;
-    float sumPoints = 0;
-    float ampThreshold = 0;
-    float timeThreshold = 1800000; //1 minuto
+    int overlapTime = (60-overlap)*30000;
+    int waitTime = 0;
 
     std::ofstream fout;
 
-    bool hasEntered = false;
+    bool hasInitialStats = false;
+    bool awake = true;
     
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MovementDetector);
 
     void calculateBufferSize(AudioSampleBuffer& buffer);
     void calculateInitialStats(AudioSampleBuffer& buffer);
-    void classifier(AudioSampleBuffer& buffer);
+    void classifier(AudioSampleBuffer& buffer, MidiBuffer& events);
 };
 
 #endif  // MovementDetector_H_INCLUDED

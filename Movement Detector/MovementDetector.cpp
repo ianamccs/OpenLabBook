@@ -91,12 +91,12 @@ void MovementDetector::calculateInitialStats(AudioSampleBuffer& buffer)
 		float currentSample = (float) buffer.getSample(0,i);
 
 		// Fill an array with initial 2s of data
-		if((initialWindow.size() == (60000-1)) && (hasEntered == false))
+		if((initialWindow.size() == (60000-1)) && (hasInitialStats == false))
 		{
-			hasEntered = true;
+			hasInitialStats = true;
 
 			// add the last term to initialMean
-			initialWindow.add(currentSample);
+			initialWindow.add(pow(currentSample,2));
 			initialMean += pow(currentSample,2);
 			//fout << currentSample;
 			//fout.close();	
@@ -114,66 +114,77 @@ void MovementDetector::calculateInitialStats(AudioSampleBuffer& buffer)
 			std::cout<<"\n Desvio padrao: "<<standardDev<<"\n";
 		}
 
-		else if((hasEntered == false) && (initialWindow.size() < (60000-1)))
+		else if((hasInitialStats == false) && (initialWindow.size() < (60000-1)))
 		{
-			initialWindow.add(currentSample);
+			initialWindow.add(pow(currentSample,2));
 			initialMean += pow(currentSample,2);
 			//fout << currentSample << std::endl;
 		}
 	}
 }
 
-void MovementDetector::classifier(AudioSampleBuffer& buffer)
+void MovementDetector::classifier(AudioSampleBuffer& buffer,
+									MidiBuffer& events)
 {
 	for(int i = 0; i < bufferSize; i++)
-		{	
-			float currentSample = (float) buffer.getSample(0,i);
+	{	
+		float currentSample = (float) buffer.getSample(0,i);
 
-			if(meanAmp.size() >= timeThreshold)
-	        {
+		// enche ampWindow com timeThreshold segundos
+		if(ampWindow.size() < timeThreshold)
+        {
+        	ampWindow.add(pow(currentSample,2));
+        }
+        else 
+        {
+        	if(waitTime > 0)
+        	{
+	        	ampWindow.set(k, pow(currentSample,2));
+	        	k++;
+	        	if(k == timeThreshold) { k = 0; }
+	        	waitTime--;
+        	}	        	
+        	else
+        	{
+        		int len = ampWindow.size();
+        		float sumAmp = 0;
 
-	        	/* inserir aqui lógica que trabalha a janela de tempo e faz a classificação */
+        		for(int j = 0; j < len; j++)
+        		{
+        			sumAmp += ampWindow[j];
+        		}
 
-	 	       	// substitui os 10s iniciais do vetor por novos 10s
-	        	if(k == ((60-overlap)*30000)-1)
-	        	{
-	        		for(int l = 0; l < meanAmp.size();l++)
-	        		{
-	        			sumAmp += meanAmp[l];
-	        		}
+        		float ampMean = sqrt(sumAmp/len); // assumindo que a média das amplitudes
+        											// na janela de tempo será o critério de
+        											// classificação
+        		
+        		std::cout << "initialMean: " << (initialMean) << "\n";
+        		std::cout << "ampMean: " << (ampMean) << "\n";
+        		
+        		
+        		if(ampMean <= initialMean)
+        		{
+        			std::cout << "dormindo \n\n";
 
-	        		windowMean = sqrt(sumAmp/meanAmp.size()); // assumindo que a média das amplitudes
-	        											// na janela de tempo será o critério de
-	        											// classificação
-	        		sumAmp = 0;
-	        		
-	        		std::cout << "initialMean: " << (initialMean) << "\n";
-	        		std::cout << "windowMean: " << (windowMean) << "\n";
-	        		
-	        		
-	        		if(windowMean <= (initialMean))
-	        		{
-	        			std::cout << "dormindo \n\n";
-	        		}
-	        		else
-	        		{
-	        			std::cout << "acordado \n\n";
-	        		}
+        			if(awake) {
+        				awake = false;
+        				addEvent(events, TTL, 0, 1, 0);
+        			}
+        		}
+        		else
+        		{
+        			std::cout << "acordado \n\n";
 
-	        		k = 0;
-	        	}
-	        	if(k < (60-overlap)*30000)
-	        	{
-		        	meanAmp.set(k,pow(currentSample,2));
-		        	k++;
-	        	}
-	        }
+        			if(!awake) {
+        				awake = true;
+        				addEvent(events, TTL, 0, 0, 0);
+        			}
+        		}
 
-	        else 
-	        {
-	        	meanAmp.add(pow(currentSample,2));
-	        } 
-		}	
+        		waitTime = overlapTime;
+        	}
+        } 
+	}	
 }
 
 void MovementDetector::process(AudioSampleBuffer& buffer,
@@ -184,13 +195,13 @@ void MovementDetector::process(AudioSampleBuffer& buffer,
 		calculateBufferSize(buffer);
 	}
 
-	if(hasEntered == false)
+	if(hasInitialStats == false)
 	{
 		calculateInitialStats(buffer);
 	}
 
 	else
 	{
-		classifier(buffer);
+		classifier(buffer, events);
 	}
 }
