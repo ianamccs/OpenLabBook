@@ -116,12 +116,15 @@ private:
 
     Array<float> initialWindow; //2s
     Array<float> ampWindow;
+    Array<float> sdWindow;
     float initialMean = 0;
+    float initialRMS = 0;
     float standardDev = 0;
     int bufferSize = 0;
-    int timeThreshold = 180000; //6s //1 minuto
+    int timeThreshold = 1800000; //6s //1 minuto
     int overlap = 50;
     int k = 0;
+    int initialTimeWindow = 10*30000;
     int overlapTime = (60-overlap)*30000;
     int waitTime = 0;
 

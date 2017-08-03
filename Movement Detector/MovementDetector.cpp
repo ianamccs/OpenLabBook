@@ -91,33 +91,38 @@ void MovementDetector::calculateInitialStats(AudioSampleBuffer& buffer)
 		float currentSample = (float) buffer.getSample(0,i);
 
 		// Fill an array with initial 2s of data
-		if((initialWindow.size() == (60000-1)) && (hasInitialStats == false))
+		if((initialWindow.size() == (initialTimeWindow-1)) && (hasInitialStats == false))
 		{
 			hasInitialStats = true;
 
-			// add the last term to initialMean
-			initialWindow.add(pow(currentSample,2));
-			initialMean += pow(currentSample,2);
+			// add the last term
+			initialWindow.add(currentSample);
+			//initialRMS += pow(currentSample,2);
+			initialMean += currentSample;
 			//fout << currentSample;
 			//fout.close();	
 
-			// Compute the mean of 2s of data
-			initialMean = sqrt(initialMean/60000);
+			// Compute the RMS of 2s of data
+            //initialRMS = sqrt(initialRMS/initialTimeWindow);
+
+            //Compute the mean of 2s of data
+			initialMean = (initialMean/initialTimeWindow);
 
 			// Compute the the SD for 2s of data
-			for(int j = 0; j < 60000; j++)
+			for(int j = 0; j < initialTimeWindow; j++)
 			{
 				standardDev += pow((initialWindow[j] - initialMean),2);
 			}
-			standardDev = sqrt(standardDev/60000);
+			standardDev = sqrt(standardDev/initialTimeWindow);
 
 			std::cout<<"\n Desvio padrao: "<<standardDev<<"\n";
 		}
 
-		else if((hasInitialStats == false) && (initialWindow.size() < (60000-1)))
+		else if((hasInitialStats == false) && (initialWindow.size() < (initialTimeWindow-1)))
 		{
-			initialWindow.add(pow(currentSample,2));
-			initialMean += pow(currentSample,2);
+			initialWindow.add(currentSample);
+			//initialRMS += pow(currentSample,2);
+			initialMean += currentSample;
 			//fout << currentSample << std::endl;
 		}
 	}
@@ -131,53 +136,74 @@ void MovementDetector::classifier(AudioSampleBuffer& buffer,
 		float currentSample = (float) buffer.getSample(0,i);
 
 		// enche ampWindow com timeThreshold segundos
-		if(ampWindow.size() < timeThreshold)
+		if(sdWindow.size() < timeThreshold)
         {
-        	ampWindow.add(pow(currentSample,2));
+        	//ampWindow.add(pow(currentSample,2));
+        	sdWindow.add(currentSample);
         }
         else 
         {
         	if(waitTime > 0)
         	{
-	        	ampWindow.set(k, pow(currentSample,2));
+	        	//ampWindow.set(k, pow(currentSample,2));
+	        	sdWindow.set(k, currentSample);
 	        	k++;
 	        	if(k == timeThreshold) { k = 0; }
 	        	waitTime--;
-        	}	        	
+        	}        	
         	else
         	{
-        		int len = ampWindow.size();
+        		int len = sdWindow.size(); // timeThreshold seconds =1min
         		float sumAmp = 0;
+        		float winDev = 0;
 
         		for(int j = 0; j < len; j++)
         		{
-        			sumAmp += ampWindow[j];
+        			sumAmp += sdWindow[j];
         		}
 
-        		float ampMean = sqrt(sumAmp/len); // assumindo que a média das amplitudes
-        											// na janela de tempo será o critério de
-        											// classificação
-        		
-        		std::cout << "initialMean: " << (initialMean) << "\n";
-        		std::cout << "ampMean: " << (ampMean) << "\n";
-        		
-        		
-        		if(ampMean <= initialMean)
-        		{
-        			std::cout << "dormindo \n\n";
+        		//float ampMean = sqrt(sumAmp/len); // assumindo que a média das amplitudes
+        										  // na janela de tempo será o critério de
+        										  // classificação
+        		float winMean = (sumAmp/len);
 
-        			if(awake) {
-        				awake = false;
-        				addEvent(events, TTL, 0, 1, 0);
+        		for(int k = 0; k < len; k++)
+        		{
+        			winDev += pow((sdWindow[k] - winMean),2);
+        		}
+
+        		winDev = sqrt(winDev/len);
+
+        		//std::cout << "initialRMS: " << (initialRMS) << "\n";
+        		//std::cout << "ampMean: " << (ampMean) << "\n";
+        		
+        		std::cout<<"----------\n";
+        		std::cout<<"std inicial: " << standardDev;
+        		std::cout<<"\nstd janela: " << winDev;
+        		if(winDev <= 1.1*standardDev/4)
+        		{
+        			std::cout << "\nacordado \n\n";
+
+        			//if(awake) 
+                    if(!awake)
+        			{
+        				// awake = false;
+        				// addEvent(events, TTL, 0, 1, 0);
+                        awake = true;
+                        addEvent(events, TTL, 0, 0, 0);
         			}
         		}
         		else
         		{
-        			std::cout << "acordado \n\n";
+        			std::cout << "\ndormindo \n\n";
 
-        			if(!awake) {
-        				awake = true;
-        				addEvent(events, TTL, 0, 0, 0);
+        			//if(!awake) 
+                    if(awake)
+        			{
+        				// awake = true;
+        				// addEvent(events, TTL, 0, 0, 0);
+                        awake = false;
+                        addEvent(events, TTL, 0, 1, 0);
         			}
         		}
 
@@ -203,5 +229,10 @@ void MovementDetector::process(AudioSampleBuffer& buffer,
 	else
 	{
 		classifier(buffer, events);
+
+        // Refazer o valor referência se pressionado o botao
+        // if recalculateInitialStats.pressed -> 
+        //     hasInitialStats = false;
+        //     initialWindow.clear();
 	}
 }
