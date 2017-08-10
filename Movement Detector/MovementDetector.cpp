@@ -29,7 +29,7 @@ MovementDetector::MovementDetector()
     : GenericProcessor("Movement Detector") //, threshold(200.0), state(true)
 
 {
-	fout.open("teste.txt");
+	fout.open("std.txt");
 	//Without a custom editor, generic parameter controls can be added
     //parameters.add(Parameter("thresh", 0.0, 500.0, 200.0, 0));
 
@@ -90,7 +90,7 @@ void MovementDetector::calculateInitialStats(AudioSampleBuffer& buffer)
 	{
 		float currentSample = (float) buffer.getSample(0,i);
 
-		// Fill an array with initial 2s of data
+		// Fill an array with initial 10s of data
 		if((initialWindow.size() == (initialTimeWindow-1)) && (hasInitialStats == false))
 		{
 			hasInitialStats = true;
@@ -108,14 +108,18 @@ void MovementDetector::calculateInitialStats(AudioSampleBuffer& buffer)
             //Compute the mean of 2s of data
 			initialMean = (initialMean/initialTimeWindow);
 
-			// Compute the the SD for 2s of data
+			// Compute the the SD for 10s of data
 			for(int j = 0; j < initialTimeWindow; j++)
 			{
 				standardDev += pow((initialWindow[j] - initialMean),2);
 			}
 			standardDev = sqrt(standardDev/initialTimeWindow);
 
-			std::cout<<"\n Desvio padrao: "<<standardDev<<"\n";
+            sdWindow = initialWindow; // copia o primeiro minuto em sdWindow
+
+            std::cout<<"\n Desvio padrao: "<<standardDev<<"\n";
+            std::cout<<"\n Media: "<<initialMean<<"\n";
+			std::cout<<"\n sdWindow_size: "<<sdWindow.size()<<"\n";
 		}
 
 		else if((hasInitialStats == false) && (initialWindow.size() < (initialTimeWindow-1)))
@@ -136,13 +140,13 @@ void MovementDetector::classifier(AudioSampleBuffer& buffer,
 		float currentSample = (float) buffer.getSample(0,i);
 
 		// enche ampWindow com timeThreshold segundos
-		if(sdWindow.size() < timeThreshold)
-        {
-        	//ampWindow.add(pow(currentSample,2));
-        	sdWindow.add(currentSample);
-        }
-        else 
-        {
+		// if(sdWindow.size() < timeThreshold)
+  //       {
+  //       	//ampWindow.add(pow(currentSample,2));
+  //       	sdWindow.add(currentSample);
+  //       }
+        // else 
+        // {
         	if(waitTime > 0)
         	{
 	        	//ampWindow.set(k, pow(currentSample,2));
@@ -180,36 +184,41 @@ void MovementDetector::classifier(AudioSampleBuffer& buffer,
         		std::cout<<"----------\n";
         		std::cout<<"std inicial: " << standardDev;
         		std::cout<<"\nstd janela: " << winDev;
-        		if(winDev <= 1.1*standardDev/4)
-        		{
-        			std::cout << "\nacordado \n\n";
 
-        			//if(awake) 
-                    if(!awake)
+                if(contador == 178)
+                {
+                    fout.close();
+                }
+                else
+                {
+                    fout << winDev << std::endl;
+                    contador++;
+                }
+        		
+                if(winDev <= 2.4*standardDev)
+        		{
+        			std::cout << "\ndormindo \n\n";
+
+        			if(awake)
         			{
-        				// awake = false;
-        				// addEvent(events, TTL, 0, 1, 0);
-                        awake = true;
-                        addEvent(events, TTL, 0, 0, 0);
+        				awake = false;
+        				addEvent(events, TTL, 0, 1, 0);
         			}
         		}
         		else
         		{
-        			std::cout << "\ndormindo \n\n";
+        			std::cout << "\nacordado \n\n";
 
-        			//if(!awake) 
-                    if(awake)
+        			if(!awake) 
         			{
-        				// awake = true;
-        				// addEvent(events, TTL, 0, 0, 0);
-                        awake = false;
-                        addEvent(events, TTL, 0, 1, 0);
+        				awake = true;
+        				addEvent(events, TTL, 0, 0, 0);
         			}
         		}
 
         		waitTime = overlapTime;
         	}
-        } 
+        //} 
 	}	
 }
 

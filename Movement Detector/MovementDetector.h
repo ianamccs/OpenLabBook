@@ -124,9 +124,10 @@ private:
     int timeThreshold = 1800000; //6s //1 minuto
     int overlap = 50;
     int k = 0;
-    int initialTimeWindow = 10*30000;
+    int initialTimeWindow = 60*30000;
     int overlapTime = (60-overlap)*30000;
-    int waitTime = 0;
+    int waitTime = overlapTime;
+    int contador = 0;
 
     std::ofstream fout;
 
