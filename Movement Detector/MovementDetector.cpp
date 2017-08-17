@@ -202,7 +202,8 @@ void MovementDetector::classifier(AudioSampleBuffer& buffer,
         			if(awake)
         			{
         				awake = false;
-        				addEvent(events, TTL, 0, 1, 0);
+                        
+                        addEvent(events, TTL, 0, resting, 0);
         			}
         		}
         		else
@@ -212,7 +213,8 @@ void MovementDetector::classifier(AudioSampleBuffer& buffer,
         			if(!awake) 
         			{
         				awake = true;
-        				addEvent(events, TTL, 0, 0, 0);
+                        
+                        addEvent(events, TTL, 0, !resting, 0);
         			}
         		}
 

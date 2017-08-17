@@ -133,6 +133,7 @@ private:
 
     bool hasInitialStats = false;
     bool awake = true;
+    bool resting = true; //event of interest
     
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MovementDetector);
 
